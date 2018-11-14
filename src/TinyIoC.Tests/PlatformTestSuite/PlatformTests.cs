@@ -3,19 +3,35 @@
 // register the TinyMessenger messenger/event aggregator
 //#define TINYMESSENGER
 
+// Uncomment this line if you want to internalize this library
+//#define TINYIOC_INTERNAL
+
+// Uncomment this line if you want to target PCL.
+//#define PORTABLE
+
 // Preprocessor directives for enabling/disabling functionality
 // depending on platform features. If the platform has an appropriate
 // #DEFINE then these should be set automatically below.
 #define EXPRESSIONS                         // Platform supports System.Linq.Expressions
+#define COMPILED_EXPRESSIONS                // Platform supports compiling expressions
 #define APPDOMAIN_GETASSEMBLIES             // Platform supports getting all assemblies from the AppDomain object
 #define UNBOUND_GENERICS_GETCONSTRUCTORS    // Platform supports GetConstructors on unbound generic types
+#define GETPARAMETERS_OPEN_GENERICS         // Platform supports GetParameters on open generics
 #define RESOLVE_OPEN_GENERICS               // Platform supports resolving open generics
+#define READER_WRITER_LOCK_SLIM             // Platform supports ReaderWriterLockSlim
 
-// CompactFramework
+#if PORTABLE
+#undef APPDOMAIN_GETASSEMBLIES
+#undef COMPILED_EXPRESSIONS
+#undef READER_WRITER_LOCK_SLIM
+#endif
+
+// CompactFramework / Windows Phone 7
 // By default does not support System.Linq.Expressions.
 // AppDomain object does not support enumerating all assemblies in the app domain.
 #if PocketPC || WINDOWS_PHONE
 #undef EXPRESSIONS
+#undef COMPILED_EXPRESSIONS
 #undef APPDOMAIN_GETASSEMBLIES
 #undef UNBOUND_GENERICS_GETCONSTRUCTORS
 #endif
@@ -25,17 +41,29 @@
 #if PocketPC
 #undef GETPARAMETERS_OPEN_GENERICS
 #undef RESOLVE_OPEN_GENERICS
+#undef READER_WRITER_LOCK_SLIM
 #endif
 
 #if SILVERLIGHT
 #undef APPDOMAIN_GETASSEMBLIES
 #endif
+
+#if NETFX_CORE
+#undef APPDOMAIN_GETASSEMBLIES
+#undef RESOLVE_OPEN_GENERICS
+#endif
+
+#if COMPILED_EXPRESSIONS
+#define USE_OBJECT_CONSTRUCTOR
+#endif
+
 #endregion
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Reflection;
 
 namespace TinyIoC.Tests.PlatformTestSuite
 {
@@ -213,7 +241,9 @@ namespace TinyIoC.Tests.PlatformTestSuite
 
             _Tests = new List<Func<TinyIoC.TinyIoCContainer, ILogger, bool>>()
             {
+#if APPDOMAIN_GETASSEMBLIES
                 AutoRegisterAppDomain,
+#endif
                 AutoRegisterAssemblySpecified,
                 AutoRegisterPredicateExclusion,
                 RegisterConcrete,
@@ -239,9 +269,10 @@ namespace TinyIoC.Tests.PlatformTestSuite
                 IEnumerableDependency,
                 RegisterMultiple,
                 NonGenericRegister,
-#if RESOLVE_OPEN_GENERICS
+#if RESOLVE_OPEN_GENERICS 
                 OpenGenericRegistration,
                 OpenGenericResolution,
+                OpenGenericCanResolve
 #endif
             };
         }
@@ -518,6 +549,15 @@ namespace TinyIoC.Tests.PlatformTestSuite
             var result = container.Resolve<IThing<object>>();
 
             return result != null && result.GetType() == typeof(DefaultThing<object>);
+        }
+
+        private bool OpenGenericCanResolve(TinyIoCContainer container, ILogger logger)
+        {
+            logger.WriteLine("OpenGenericCanResolve");
+
+            container.Register(typeof(IThing<>), typeof(DefaultThing<>));
+
+            return container.CanResolve(typeof(IThing<int>));
         }
     }
 }

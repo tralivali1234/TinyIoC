@@ -1,12 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Web;
 
 namespace TinyIoC
 {
-    public class HttpContextLifetimeProvider : TinyIoCContainer.ITinyIoCObjectLifetimeProvider
+#if TINYIOC_INTERNAL
+    internal
+#else
+    public
+#endif
+    class HttpContextLifetimeProvider : TinyIoCContainer.ITinyIoCObjectLifetimeProvider
     {
         private readonly string _KeyName = String.Format("TinyIoC.HttpContext.{0}", Guid.NewGuid());
 
@@ -31,11 +33,21 @@ namespace TinyIoC
         }
     }
 
-    public static class TinyIoCAspNetExtensions
+#if TINYIOC_INTERNAL
+    internal
+#else
+    public
+#endif
+    static class TinyIoCAspNetExtensions
     {
         public static TinyIoC.TinyIoCContainer.RegisterOptions AsPerRequestSingleton(this TinyIoC.TinyIoCContainer.RegisterOptions registerOptions)
         {
             return TinyIoCContainer.RegisterOptions.ToCustomLifetimeManager(registerOptions, new HttpContextLifetimeProvider(), "per request singleton");
+        }
+
+        public static TinyIoCContainer.MultiRegisterOptions AsPerRequestSingleton(this TinyIoCContainer.MultiRegisterOptions registerOptions)
+        {
+            return TinyIoCContainer.MultiRegisterOptions.ToCustomLifetimeManager(registerOptions, new HttpContextLifetimeProvider(), "per request singleton");
         }
     }
 }
